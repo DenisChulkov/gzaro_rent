@@ -331,7 +331,7 @@
 </svelte:head>
 
 <div class="map-page">
-	<header class="map-header">
+	<header class="map-header" class:map-header--owner={isPropertyOwner}>
 		<button class="back-button" onclick={handleBack} aria-label={$t('back')}>
 			<span class="back-icon">←</span>
 		</button>
@@ -441,6 +441,8 @@
 		display: flex;
 		flex-direction: column;
 		height: 100%;
+		width: 100%;
+		overflow: hidden;
 	}
 
 	.map-header {
@@ -472,6 +474,7 @@
 
 	.map-header h1 {
 		flex: 1;
+		min-width: 0;
 		margin: 0;
 		font-size: 20px;
 		font-weight: 700;
@@ -491,6 +494,8 @@
 		font-weight: 500;
 		cursor: pointer;
 		position: relative;
+		max-width: 100%;
+		min-width: 0;
 	}
 
 	.filter-button:active {
@@ -643,12 +648,17 @@
 		font-size: 14px;
 		font-weight: 500;
 		cursor: pointer;
+		white-space: nowrap;
+		min-width: 0;
 	}
 
 	.owner-actions {
 		display: flex;
 		align-items: center;
 		gap: 8px;
+		flex-shrink: 0;
+		max-width: 100%;
+		min-width: 0;
 	}
 
 	.settings-button {
@@ -663,6 +673,9 @@
 		font-size: 14px;
 		font-weight: 500;
 		cursor: pointer;
+		white-space: nowrap;
+		min-width: 0;
+		max-width: 100%;
 	}
 
 	.settings-button:active {
@@ -675,6 +688,13 @@
 
 	.add-property-button svg {
 		flex-shrink: 0;
+	}
+
+	.settings-button span,
+	.add-property-button span,
+	.filter-button span {
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.map-overlay--hint {
@@ -742,5 +762,56 @@
 
 	.confirm-location-button:active {
 		transform: scale(0.98);
+	}
+
+	@media (max-width: 768px) {
+		.map-header.map-header--owner {
+			display: grid;
+			grid-template-columns: 40px 1fr;
+			grid-template-areas:
+				'back title'
+				'actions actions';
+			row-gap: 10px;
+		}
+
+		.map-header.map-header--owner .back-button {
+			grid-area: back;
+		}
+
+		.map-header.map-header--owner h1 {
+			grid-area: title;
+			font-size: 18px;
+		}
+
+		.owner-actions {
+			grid-area: actions;
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			width: 100%;
+		}
+
+		.settings-button,
+		.add-property-button {
+			width: 100%;
+			justify-content: center;
+		}
+	}
+
+	@media (max-width: 420px) {
+		.map-header {
+			padding: 10px 12px;
+			gap: 8px;
+		}
+
+		.settings-button span,
+		.add-property-button span {
+			display: none;
+		}
+
+		.settings-button,
+		.add-property-button {
+			padding: 10px;
+			justify-content: center;
+		}
 	}
 </style>
