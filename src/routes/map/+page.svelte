@@ -17,6 +17,7 @@
 
 	let isLoading = $state(true);
 	let locationError = $state<string | null>(null);
+	let telegramPermissionDenied = $state(false);
 	let detectedLocation = $state<{ lat: number; lng: number } | null>(null);
 	let activeFilterCount = $derived(filters.getActiveCount($filters));
 	let propertyLocation = $state<{ lat: number; lng: number } | null>(null);
@@ -92,6 +93,7 @@
 	function requestLocation() {
 		console.log('Requesting location...');
 		locationError = null;
+		telegramPermissionDenied = false;
 		let hasFallenBack = false;
 
 		const fallbackToBrowser = () => {
@@ -101,13 +103,13 @@
 		};
 
 		const locationManager = tg?.LocationManager;
-		if (locationManager?.isLocationAvailable) {
+		if (locationManager) {
 			let telegramRequestCompleted = false;
 			const telegramTimeoutId = setTimeout(() => {
 				if (telegramRequestCompleted) return;
 				console.log('Telegram location timed out, falling back to browser geolocation');
 				fallbackToBrowser();
-			}, 1200);
+			}, 2500);
 
 			try {
 				locationManager.init(() => {
@@ -122,6 +124,14 @@
 								lng: location.longitude
 							};
 							showUserLocation(location.latitude, location.longitude);
+							return;
+						}
+
+						if (locationManager.isAccessRequested && !locationManager.isAccessGranted) {
+							console.log('Telegram location permission denied');
+							telegramPermissionDenied = true;
+							locationError = tr('locationPermissionDenied');
+							isLoading = false;
 							return;
 						}
 
@@ -291,6 +301,9 @@
 	}
 
 	function handleRetry() {
+		if (telegramPermissionDenied) {
+			tg?.LocationManager?.openSettings();
+		}
 		isLoading = true;
 		locationError = null;
 		requestLocation();
