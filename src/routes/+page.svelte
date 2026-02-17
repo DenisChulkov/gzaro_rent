@@ -21,7 +21,7 @@
 				break;
 			case 'search':
 				user.setAsUser();
-				goto(resolve('/map'));
+				goto(resolve('/search-location'));
 				break;
 		}
 	}

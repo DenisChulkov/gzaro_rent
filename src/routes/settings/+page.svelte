@@ -12,6 +12,14 @@
 	let email = $state(get(user)?.email ?? '');
 	let phone = $state(get(user)?.phone ?? '');
 	let password = $state(get(user)?.password ?? '');
+	let contactPhone = $state(get(user)?.contactPhone ?? '');
+	let contactEmail = $state(get(user)?.contactEmail ?? '');
+	let contactWhatsapp = $state(get(user)?.contactWhatsapp ?? '');
+	let contactViber = $state(get(user)?.contactViber ?? '');
+	let contactTelegram = $state(get(user)?.contactTelegram ?? '');
+	let preferredContactMethod = $state<
+		'phone' | 'email' | 'whatsapp' | 'viber' | 'telegram' | ''
+	>(get(user)?.preferredContactMethod ?? '');
 
 	let isEditMode = $state(false);
 	let errors = $state<Record<string, string>>({});
@@ -23,7 +31,13 @@
 			lastName.trim() !== (currentUser?.lastName ?? '') ||
 			email.trim() !== (currentUser?.email ?? '') ||
 			phone.trim() !== (currentUser?.phone ?? '') ||
-			password.trim() !== (currentUser?.password ?? '')
+			password.trim() !== (currentUser?.password ?? '') ||
+			contactPhone.trim() !== (currentUser?.contactPhone ?? '') ||
+			contactEmail.trim() !== (currentUser?.contactEmail ?? '') ||
+			contactWhatsapp.trim() !== (currentUser?.contactWhatsapp ?? '') ||
+			contactViber.trim() !== (currentUser?.contactViber ?? '') ||
+			contactTelegram.trim() !== (currentUser?.contactTelegram ?? '') ||
+			preferredContactMethod !== (currentUser?.preferredContactMethod ?? '')
 	);
 
 	function validateForm(): boolean {
@@ -53,6 +67,51 @@
 			nextErrors.password = $t('passwordTooShort');
 		}
 
+		const normalizedContactPhone = contactPhone.trim();
+		const normalizedContactEmail = contactEmail.trim();
+		const normalizedContactWhatsapp = contactWhatsapp.trim();
+		const normalizedContactViber = contactViber.trim();
+		const normalizedContactTelegram = contactTelegram.trim();
+
+		const hasContactMethod =
+			!!normalizedContactPhone ||
+			!!normalizedContactEmail ||
+			!!normalizedContactWhatsapp ||
+			!!normalizedContactViber ||
+			!!normalizedContactTelegram;
+
+		if (!hasContactMethod) {
+			nextErrors.contactMethods = $t('atLeastOneContactRequired');
+		}
+
+		if (normalizedContactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedContactEmail)) {
+			nextErrors.contactEmail = $t('invalidEmail');
+		}
+
+		const simplePhoneRegex = /^[\d\s\-+()]{7,20}$/;
+		if (normalizedContactPhone && !simplePhoneRegex.test(normalizedContactPhone)) {
+			nextErrors.contactPhone = $t('invalidPhone');
+		}
+		if (normalizedContactWhatsapp && !simplePhoneRegex.test(normalizedContactWhatsapp)) {
+			nextErrors.contactWhatsapp = $t('invalidPhone');
+		}
+		if (normalizedContactViber && !simplePhoneRegex.test(normalizedContactViber)) {
+			nextErrors.contactViber = $t('invalidPhone');
+		}
+
+		if (preferredContactMethod) {
+			const preferredMap = {
+				phone: normalizedContactPhone,
+				email: normalizedContactEmail,
+				whatsapp: normalizedContactWhatsapp,
+				viber: normalizedContactViber,
+				telegram: normalizedContactTelegram
+			};
+			if (!preferredMap[preferredContactMethod]) {
+				nextErrors.preferredContactMethod = $t('preferredContactMustBeFilled');
+			}
+		}
+
 		errors = nextErrors;
 		return Object.keys(nextErrors).length === 0;
 	}
@@ -67,6 +126,12 @@
 		email = currentUser?.email ?? '';
 		phone = currentUser?.phone ?? '';
 		password = currentUser?.password ?? '';
+		contactPhone = currentUser?.contactPhone ?? '';
+		contactEmail = currentUser?.contactEmail ?? '';
+		contactWhatsapp = currentUser?.contactWhatsapp ?? '';
+		contactViber = currentUser?.contactViber ?? '';
+		contactTelegram = currentUser?.contactTelegram ?? '';
+		preferredContactMethod = currentUser?.preferredContactMethod ?? '';
 		errors = {};
 	}
 
@@ -94,7 +159,13 @@
 			lastName: lastName.trim(),
 			email: email.trim(),
 			phone: phone.trim(),
-			password: password.trim()
+			password: password.trim(),
+			contactPhone: contactPhone.trim(),
+			contactEmail: contactEmail.trim(),
+			contactWhatsapp: contactWhatsapp.trim(),
+			contactViber: contactViber.trim(),
+			contactTelegram: contactTelegram.trim(),
+			preferredContactMethod: preferredContactMethod || undefined
 		});
 
 		setTimeout(() => {
@@ -188,6 +259,101 @@
 			{/if}
 		</div>
 
+		<div class="contact-section">
+			<h2>{$t('contactMethodsTitle')}</h2>
+			<p class="hint">{$t('contactVisibilityHint')}</p>
+
+			<div class="form-group">
+				<label for="contactPhone">{$t('phone')}</label>
+				<input
+					id="contactPhone"
+					type="tel"
+					bind:value={contactPhone}
+					disabled={!isEditMode}
+					class:error={errors.contactPhone}
+				/>
+				{#if errors.contactPhone}
+					<span class="error-text">{errors.contactPhone}</span>
+				{/if}
+			</div>
+
+			<div class="form-group">
+				<label for="contactEmail">{$t('email')}</label>
+				<input
+					id="contactEmail"
+					type="email"
+					bind:value={contactEmail}
+					disabled={!isEditMode}
+					class:error={errors.contactEmail}
+				/>
+				{#if errors.contactEmail}
+					<span class="error-text">{errors.contactEmail}</span>
+				{/if}
+			</div>
+
+			<div class="form-group">
+				<label for="contactWhatsapp">WhatsApp</label>
+				<input
+					id="contactWhatsapp"
+					type="tel"
+					bind:value={contactWhatsapp}
+					disabled={!isEditMode}
+					class:error={errors.contactWhatsapp}
+				/>
+				{#if errors.contactWhatsapp}
+					<span class="error-text">{errors.contactWhatsapp}</span>
+				{/if}
+			</div>
+
+			<div class="form-group">
+				<label for="contactViber">Viber</label>
+				<input
+					id="contactViber"
+					type="tel"
+					bind:value={contactViber}
+					disabled={!isEditMode}
+					class:error={errors.contactViber}
+				/>
+				{#if errors.contactViber}
+					<span class="error-text">{errors.contactViber}</span>
+				{/if}
+			</div>
+
+			<div class="form-group">
+				<label for="contactTelegram">Telegram</label>
+				<input
+					id="contactTelegram"
+					type="text"
+					bind:value={contactTelegram}
+					disabled={!isEditMode}
+				/>
+			</div>
+
+			<div class="form-group">
+				<label for="preferredContactMethod">{$t('preferredContactMethod')}</label>
+				<select
+					id="preferredContactMethod"
+					bind:value={preferredContactMethod}
+					disabled={!isEditMode}
+					class:error={errors.preferredContactMethod}
+				>
+					<option value="">{$t('selectPreferredContactMethod')}</option>
+					<option value="phone">{$t('phone')}</option>
+					<option value="email">{$t('email')}</option>
+					<option value="whatsapp">WhatsApp</option>
+					<option value="viber">Viber</option>
+					<option value="telegram">Telegram</option>
+				</select>
+				{#if errors.preferredContactMethod}
+					<span class="error-text">{errors.preferredContactMethod}</span>
+				{/if}
+			</div>
+
+			{#if errors.contactMethods}
+				<span class="error-text">{errors.contactMethods}</span>
+			{/if}
+		</div>
+
 		<div class="form-group">
 			<label for="balance">{$t('balance')}</label>
 			<input id="balance" type="text" value={(currentUser?.balance ?? 0).toFixed(2)} disabled />
@@ -272,7 +438,8 @@
 		font-weight: 500;
 	}
 
-	.form-group input {
+	.form-group input,
+	.form-group select {
 		padding: 14px 16px;
 		border: 1.5px solid var(--tg-theme-secondary-bg-color, #e0e0e0);
 		border-radius: 10px;
@@ -281,18 +448,37 @@
 		color: var(--tg-theme-text-color, #000000);
 	}
 
-	.form-group input:focus {
+	.form-group input:focus,
+	.form-group select:focus {
 		outline: none;
 		border-color: var(--tg-theme-button-color, #3390ec);
 	}
 
-	.form-group input:disabled {
+	.form-group input:disabled,
+	.form-group select:disabled {
 		opacity: 0.8;
 		cursor: not-allowed;
 	}
 
-	.form-group input.error {
+	.form-group input.error,
+	.form-group select.error {
 		border-color: #e53935;
+	}
+
+	.contact-section {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding: 14px;
+		border: 1px solid var(--tg-theme-secondary-bg-color, #e0e0e0);
+		border-radius: 12px;
+		background: color-mix(in srgb, var(--tg-theme-bg-color, #ffffff) 92%, #3390ec 8%);
+	}
+
+	.contact-section h2 {
+		margin: 0;
+		font-size: 16px;
+		font-weight: 700;
 	}
 
 	.hint {

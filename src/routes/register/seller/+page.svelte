@@ -10,6 +10,12 @@
 	let phone = $state('');
 	let password = $state('');
 	let confirmPassword = $state('');
+	let contactPhone = $state('');
+	let contactEmail = $state('');
+	let contactWhatsapp = $state('');
+	let contactViber = $state('');
+	let contactTelegram = $state('');
+	let preferredContactMethod = $state<'phone' | 'email' | 'whatsapp' | 'viber' | 'telegram' | ''>('');
 
 	let errors = $state<Record<string, string>>({});
 	let isSubmitting = $state(false);
@@ -49,6 +55,51 @@
 			newErrors.confirmPassword = $t('passwordsDoNotMatch');
 		}
 
+		const normalizedContactPhone = contactPhone.trim();
+		const normalizedContactEmail = contactEmail.trim();
+		const normalizedContactWhatsapp = contactWhatsapp.trim();
+		const normalizedContactViber = contactViber.trim();
+		const normalizedContactTelegram = contactTelegram.trim();
+
+		const hasContactMethod =
+			!!normalizedContactPhone ||
+			!!normalizedContactEmail ||
+			!!normalizedContactWhatsapp ||
+			!!normalizedContactViber ||
+			!!normalizedContactTelegram;
+
+		if (!hasContactMethod) {
+			newErrors.contactMethods = $t('atLeastOneContactRequired');
+		}
+
+		if (normalizedContactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedContactEmail)) {
+			newErrors.contactEmail = $t('invalidEmail');
+		}
+
+		const simplePhoneRegex = /^[\d\s\-+()]{7,20}$/;
+		if (normalizedContactPhone && !simplePhoneRegex.test(normalizedContactPhone)) {
+			newErrors.contactPhone = $t('invalidPhone');
+		}
+		if (normalizedContactWhatsapp && !simplePhoneRegex.test(normalizedContactWhatsapp)) {
+			newErrors.contactWhatsapp = $t('invalidPhone');
+		}
+		if (normalizedContactViber && !simplePhoneRegex.test(normalizedContactViber)) {
+			newErrors.contactViber = $t('invalidPhone');
+		}
+
+		if (preferredContactMethod) {
+			const preferredMap = {
+				phone: normalizedContactPhone,
+				email: normalizedContactEmail,
+				whatsapp: normalizedContactWhatsapp,
+				viber: normalizedContactViber,
+				telegram: normalizedContactTelegram
+			};
+			if (!preferredMap[preferredContactMethod]) {
+				newErrors.preferredContactMethod = $t('preferredContactMustBeFilled');
+			}
+		}
+
 		errors = newErrors;
 		return Object.keys(newErrors).length === 0;
 	}
@@ -69,7 +120,13 @@
 				lastName: lastName.trim(),
 				email: email.trim(),
 				phone: phone.trim(),
-				password
+				password,
+				contactPhone: contactPhone.trim() || undefined,
+				contactEmail: contactEmail.trim() || undefined,
+				contactWhatsapp: contactWhatsapp.trim() || undefined,
+				contactViber: contactViber.trim() || undefined,
+				contactTelegram: contactTelegram.trim() || undefined,
+				preferredContactMethod: preferredContactMethod || undefined
 			},
 			'seller'
 		);
@@ -79,6 +136,12 @@
 			lastName,
 			email,
 			phone,
+			contactPhone,
+			contactEmail,
+			contactWhatsapp,
+			contactViber,
+			contactTelegram,
+			preferredContactMethod,
 			role: 'seller'
 		});
 
@@ -155,6 +218,100 @@
 			/>
 			{#if errors.phone}
 				<span class="error-message">{errors.phone}</span>
+			{/if}
+		</div>
+
+		<div class="contact-section">
+			<h2>{$t('contactMethodsTitle')}</h2>
+			<p class="contact-hint">{$t('contactVisibilityHint')}</p>
+
+			<div class="form-group">
+				<label for="contactPhone">{$t('phone')}</label>
+				<input
+					type="tel"
+					id="contactPhone"
+					bind:value={contactPhone}
+					class:error={errors.contactPhone}
+					placeholder={$t('phonePlaceholder')}
+				/>
+				{#if errors.contactPhone}
+					<span class="error-message">{errors.contactPhone}</span>
+				{/if}
+			</div>
+
+			<div class="form-group">
+				<label for="contactEmail">{$t('email')}</label>
+				<input
+					type="email"
+					id="contactEmail"
+					bind:value={contactEmail}
+					class:error={errors.contactEmail}
+					placeholder={$t('emailPlaceholder')}
+				/>
+				{#if errors.contactEmail}
+					<span class="error-message">{errors.contactEmail}</span>
+				{/if}
+			</div>
+
+			<div class="form-group">
+				<label for="contactWhatsapp">WhatsApp</label>
+				<input
+					type="tel"
+					id="contactWhatsapp"
+					bind:value={contactWhatsapp}
+					class:error={errors.contactWhatsapp}
+					placeholder={'+995...'}
+				/>
+				{#if errors.contactWhatsapp}
+					<span class="error-message">{errors.contactWhatsapp}</span>
+				{/if}
+			</div>
+
+			<div class="form-group">
+				<label for="contactViber">Viber</label>
+				<input
+					type="tel"
+					id="contactViber"
+					bind:value={contactViber}
+					class:error={errors.contactViber}
+					placeholder={'+995...'}
+				/>
+				{#if errors.contactViber}
+					<span class="error-message">{errors.contactViber}</span>
+				{/if}
+			</div>
+
+			<div class="form-group">
+				<label for="contactTelegram">Telegram</label>
+				<input
+					type="text"
+					id="contactTelegram"
+					bind:value={contactTelegram}
+					placeholder={'@username'}
+				/>
+			</div>
+
+			<div class="form-group">
+				<label for="preferredContactMethod">{$t('preferredContactMethod')}</label>
+				<select
+					id="preferredContactMethod"
+					bind:value={preferredContactMethod}
+					class:error={errors.preferredContactMethod}
+				>
+					<option value="">{$t('selectPreferredContactMethod')}</option>
+					<option value="phone">{$t('phone')}</option>
+					<option value="email">{$t('email')}</option>
+					<option value="whatsapp">WhatsApp</option>
+					<option value="viber">Viber</option>
+					<option value="telegram">Telegram</option>
+				</select>
+				{#if errors.preferredContactMethod}
+					<span class="error-message">{errors.preferredContactMethod}</span>
+				{/if}
+			</div>
+
+			{#if errors.contactMethods}
+				<span class="error-message">{errors.contactMethods}</span>
 			{/if}
 		</div>
 
@@ -258,7 +415,8 @@
 		color: var(--tg-theme-text-color, #000000);
 	}
 
-	.form-group input {
+	.form-group input,
+	.form-group select {
 		padding: 14px 16px;
 		border: 1.5px solid var(--tg-theme-secondary-bg-color, #e0e0e0);
 		border-radius: 10px;
@@ -272,13 +430,38 @@
 		color: var(--tg-theme-hint-color, #999999);
 	}
 
-	.form-group input:focus {
+	.form-group input:focus,
+	.form-group select:focus {
 		outline: none;
 		border-color: var(--tg-theme-button-color, #3390ec);
 	}
 
-	.form-group input.error {
+	.form-group input.error,
+	.form-group select.error {
 		border-color: #e53935;
+	}
+
+	.contact-section {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding: 14px;
+		border: 1px solid var(--tg-theme-secondary-bg-color, #e0e0e0);
+		border-radius: 12px;
+		background: color-mix(in srgb, var(--tg-theme-bg-color, #ffffff) 92%, #3390ec 8%);
+	}
+
+	.contact-section h2 {
+		margin: 0;
+		font-size: 16px;
+		font-weight: 700;
+	}
+
+	.contact-hint {
+		margin: 0;
+		font-size: 13px;
+		color: var(--tg-theme-hint-color, #999999);
+		line-height: 1.4;
 	}
 
 	.error-message {

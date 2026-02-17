@@ -2,52 +2,8 @@
 	import { t, type TranslationKey } from '$lib/i18n';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { countriesData } from '$lib/data/locations';
 	import { filters, type RoomType, type HeatingType } from '$lib/stores/filters';
-
-	// Types for location data
-	interface City {
-		id: string;
-		name: string;
-	}
-
-	interface Country {
-		id: string;
-		name: string;
-		currency: string;
-		cities: City[];
-	}
-
-	// Mock data - countries and cities with their local currencies
-	const countriesData: Country[] = [
-		{
-			id: 'ge',
-			name: 'Georgia',
-			currency: 'GEL',
-			cities: [
-				{ id: 'tbilisi', name: 'Tbilisi' },
-				{ id: 'batumi', name: 'Batumi' },
-				{ id: 'kutaisi', name: 'Kutaisi' }
-			]
-		},
-		{
-			id: 'am',
-			name: 'Armenia',
-			currency: 'AMD',
-			cities: [
-				{ id: 'yerevan', name: 'Yerevan' },
-				{ id: 'gyumri', name: 'Gyumri' }
-			]
-		},
-		{
-			id: 'az',
-			name: 'Azerbaijan',
-			currency: 'AZN',
-			cities: [
-				{ id: 'baku', name: 'Baku' },
-				{ id: 'ganja', name: 'Ganja' }
-			]
-		}
-	];
 
 	// Room options
 	const roomOptions: { value: RoomType; labelKey: TranslationKey }[] = [

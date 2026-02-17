@@ -5,6 +5,7 @@
 	import { get } from 'svelte/store';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { findCityById } from '$lib/data/locations';
 	import { user } from '$lib/stores/user';
 	import { filters } from '$lib/stores/filters';
 	import { tg } from '$lib/telegram';
@@ -32,10 +33,48 @@
 	// Default to Caucasus region center (Tbilisi)
 	const defaultCenter: [number, number] = [41.7151, 44.8271];
 	const defaultZoom = 10;
+	const LOCATION_CACHE_KEY = 'rent-caucasus:last-known-location';
 
 	// Helper to get translation in async context
 	function tr(key: TranslationKey): string {
 		return get(t)(key);
+	}
+
+	function loadCachedLocation(): { lat: number; lng: number } | null {
+		if (!browser) return null;
+		try {
+			const raw = sessionStorage.getItem(LOCATION_CACHE_KEY);
+			if (!raw) return null;
+			const parsed = JSON.parse(raw) as { lat?: number; lng?: number };
+			if (typeof parsed.lat !== 'number' || typeof parsed.lng !== 'number') return null;
+			return { lat: parsed.lat, lng: parsed.lng };
+		} catch {
+			return null;
+		}
+	}
+
+	function persistLocation(lat: number, lng: number) {
+		if (!browser) return;
+		try {
+			sessionStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify({ lat, lng }));
+		} catch {
+			// ignore cache write errors
+		}
+	}
+
+	function handleLocationFailure(errorKey: TranslationKey, permissionDenied = false) {
+		// If we already have a known location, keep using it and avoid showing error overlay.
+		if (detectedLocation) {
+			console.log('Location request failed, using cached location');
+			telegramPermissionDenied = false;
+			locationError = null;
+			isLoading = false;
+			return;
+		}
+
+		telegramPermissionDenied = permissionDenied;
+		locationError = tr(errorKey);
+		isLoading = false;
 	}
 
 	onMount(() => {
@@ -45,12 +84,31 @@
 		const unsubscribe = user.subscribe((value) => {
 			currentUser = value;
 		});
+		const unsubscribeFilters = filters.subscribe(() => {
+			if (!map || isPropertyOwner) return;
+			if (!focusOnSearchLocation()) {
+				goto(resolve('/search-location'));
+			}
+		});
 
-		requestLocation();
+		if (isPropertyOwner) {
+			detectedLocation = loadCachedLocation();
+			if (detectedLocation) {
+				isLoading = false;
+			}
+			requestLocation();
+		}
 		initMap();
 
 		return () => {
+			map?.off();
+			map?.remove();
+			map = null;
+			L = null;
+			userMarker = null;
+			propertyMarker = null;
 			unsubscribe();
+			unsubscribeFilters();
 		};
 	});
 
@@ -81,13 +139,40 @@
 			map.on('click', handleMapClick);
 
 			// If location was detected before map initialization, apply it now
-			if (detectedLocation) {
+			if (isPropertyOwner && detectedLocation) {
 				showUserLocation(detectedLocation.lat, detectedLocation.lng);
+			}
+
+			if (!isPropertyOwner) {
+				const isLocationApplied = focusOnSearchLocation();
+				if (!isLocationApplied) {
+					goto(resolve('/search-location'));
+				}
 			}
 		} catch (err) {
 			console.error('Map init error:', err);
 			isLoading = false;
 		}
+	}
+
+	function focusOnSearchLocation(): boolean {
+		if (!map) return false;
+
+		const currentFilters = get(filters);
+		const city = findCityById(currentFilters.countryId, currentFilters.cityId);
+		if (!city) {
+			return false;
+		}
+
+		if (userMarker) {
+			userMarker.remove();
+			userMarker = null;
+		}
+
+		map.setView([city.lat, city.lng], city.zoom ?? 12);
+		isLoading = false;
+		locationError = null;
+		return true;
 	}
 
 	function requestLocation() {
@@ -112,7 +197,7 @@
 			}, 2500);
 
 			try {
-				locationManager.init(() => {
+				const requestFromTelegram = () => {
 					locationManager.getLocation((location) => {
 						telegramRequestCompleted = true;
 						clearTimeout(telegramTimeoutId);
@@ -123,22 +208,27 @@
 								lat: location.latitude,
 								lng: location.longitude
 							};
+							persistLocation(location.latitude, location.longitude);
 							showUserLocation(location.latitude, location.longitude);
 							return;
 						}
 
 						if (locationManager.isAccessRequested && !locationManager.isAccessGranted) {
 							console.log('Telegram location permission denied');
-							telegramPermissionDenied = true;
-							locationError = tr('locationPermissionDenied');
-							isLoading = false;
+							handleLocationFailure('locationPermissionDenied', true);
 							return;
 						}
 
 						console.log('Telegram location unavailable, falling back to browser geolocation');
 						fallbackToBrowser();
 					});
-				});
+				};
+
+				if (locationManager.isInited) {
+					requestFromTelegram();
+				} else {
+					locationManager.init(requestFromTelegram);
+				}
 				return;
 			} catch (err) {
 				clearTimeout(telegramTimeoutId);
@@ -153,16 +243,14 @@
 	function requestBrowserLocation() {
 		if (!navigator.geolocation) {
 			console.error('Geolocation not supported');
-			locationError = tr('geolocationNotSupported');
-			isLoading = false;
+			handleLocationFailure('geolocationNotSupported');
 			return;
 		}
 
 		// Request location with timeout
 		const timeoutId = setTimeout(() => {
 			console.error('Location request timed out');
-			locationError = tr('locationTimeout');
-			isLoading = false;
+			handleLocationFailure('locationTimeout');
 		}, 10000);
 
 		navigator.geolocation.getCurrentPosition(
@@ -173,6 +261,7 @@
 					lat: position.coords.latitude,
 					lng: position.coords.longitude
 				};
+				persistLocation(position.coords.latitude, position.coords.longitude);
 				showUserLocation(position.coords.latitude, position.coords.longitude);
 			},
 			(error) => {
@@ -181,18 +270,17 @@
 
 				switch (error.code) {
 					case 1:
-						locationError = tr('locationPermissionDenied');
+						handleLocationFailure('locationPermissionDenied');
 						break;
 					case 2:
-						locationError = tr('locationUnavailable');
+						handleLocationFailure('locationUnavailable');
 						break;
 					case 3:
-						locationError = tr('locationTimeout');
+						handleLocationFailure('locationTimeout');
 						break;
 					default:
-						locationError = tr('locationError');
+						handleLocationFailure('locationError');
 				}
-				isLoading = false;
 			},
 			{
 				enableHighAccuracy: false,
@@ -205,26 +293,11 @@
 	function showUserLocation(lat: number, lng: number) {
 		if (!map || !L) return;
 
-		// Check user role directly from store to ensure we have current value
-		const currentUserValue = get(user);
-		const isOwner = currentUserValue?.role === 'landlord' || currentUserValue?.role === 'seller';
-
-		// For property owners: show city level view without personal marker
-		// For regular users: show precise location with marker
-		if (isOwner) {
-			// City level zoom (less precise)
-			map.setView([lat, lng], 12);
-		} else {
-			// Precise location with marker
-			map.setView([lat, lng], 14);
-
-			// Remove old marker
-			if (userMarker) {
-				userMarker.remove();
-			}
-
-			// Add marker
-			userMarker = L.marker([lat, lng]).addTo(map);
+		// Property owners see city-level map without personal marker.
+		map.setView([lat, lng], 12);
+		if (userMarker) {
+			userMarker.remove();
+			userMarker = null;
 		}
 
 		isLoading = false;
@@ -303,6 +376,7 @@
 	function handleRetry() {
 		if (telegramPermissionDenied) {
 			tg?.LocationManager?.openSettings();
+			return;
 		}
 		isLoading = true;
 		locationError = null;
@@ -390,7 +464,7 @@
 	</header>
 
 	<div class="map-container" bind:this={mapContainer}>
-		{#if isLoading}
+		{#if isLoading && isPropertyOwner}
 			<div class="map-overlay">
 				<div class="loading-spinner"></div>
 				<p>{$t('loadingLocation')}</p>
@@ -400,7 +474,7 @@
 			</div>
 		{/if}
 
-		{#if locationError}
+		{#if locationError && isPropertyOwner}
 			<div class="map-overlay map-overlay--error">
 				<p class="error-message">{locationError}</p>
 				<p class="error-hint">{$t('mapShowingDefault')}</p>

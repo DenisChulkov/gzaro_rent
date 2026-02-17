@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 
 export type UserRole = 'guest' | 'landlord' | 'seller' | 'user';
+export type ContactMethod = 'phone' | 'email' | 'whatsapp' | 'viber' | 'telegram';
 
 export interface User {
 	firstName?: string;
@@ -8,6 +9,12 @@ export interface User {
 	email?: string;
 	phone?: string;
 	password?: string;
+	contactPhone?: string;
+	contactEmail?: string;
+	contactWhatsapp?: string;
+	contactViber?: string;
+	contactTelegram?: string;
+	preferredContactMethod?: ContactMethod;
 	balance: number;
 	role: UserRole;
 }
